@@ -51,13 +51,15 @@ def check_LTL(formula, trajectory, predicates):
     # Evaluate the operands.
     evaluated_operand1 = check_LTL(formula[1], trajectory, predicates)
     evaluated_operand2 = check_LTL(formula[2], trajectory, predicates)
-    evaluation = [all([evaluated_operand1[i],evaluated_operand2[i]]) for i in range(0, len(evaluated_operand1))]
+    min_len_operand = min(len(evaluated_operand1), len(evaluated_operand2))
+    evaluation = [all([evaluated_operand1[i],evaluated_operand2[i]]) for i in range(0, min_len_operand)]
 
   elif formula[0]=='\\/':
     # Evaluate the operands.
     evaluated_operand1 = check_LTL(formula[1], trajectory, predicates)
     evaluated_operand2 = check_LTL(formula[2], trajectory, predicates)
-    evaluation = [any([evaluated_operand1[i],evaluated_operand2[i]]) for i in range(0, len(evaluated_operand1))]
+    min_len_operand = min(len(evaluated_operand1), len(evaluated_operand2))
+    evaluation = [any([evaluated_operand1[i],evaluated_operand2[i]]) for i in range(0, min_len_operand)]
 
   elif formula[0]=='~':
     # Evaluate the operand.
@@ -67,27 +69,31 @@ def check_LTL(formula, trajectory, predicates):
   elif formula[0]=='>':
     # Evaluate the operand.
     evaluated_operand = check_LTL(formula[1], trajectory, predicates)
-    evaluation = [i for i in evaluated_operand[1:]] + [False]
+    evaluation = [i for i in evaluated_operand[1:]]
 
   elif formula[0]=='%':
     # Evaluate the operands.
     evaluated_operand1 = check_LTL(formula[1], trajectory, predicates)
     evaluated_operand2 = check_LTL(formula[2], trajectory, predicates)
+    min_len_operand = min(len(evaluated_operand1), len(evaluated_operand2))
     i=0
-    while(i<len(evaluated_operand1)):
+    while(i<min_len_operand):
       try:
-        op2_idx = evaluated_operand2[i:].index(True) + i # get the first time op2 is True
+        op2_idx = evaluated_operand2[i:min_len_operand].index(True) + i # get the first time op2 is True
         evaluation += [all(evaluated_operand1[j:op2_idx]) for j in range(i,op2_idx)] + [True]
         i = op2_idx + 1
       except:
-        evaluation += [False for _ in range(i, len(evaluated_operand2))] # op2 is never True
+        evaluation += [False for _ in range(i, min_len_operand)] # op2 is never True
         break
 
   elif formula[0]=='->':
     # Evaluate the operands.
     evaluated_operand1 = check_LTL(formula[1], trajectory, predicates)
     evaluated_operand2 = check_LTL(formula[2], trajectory, predicates)
-    evaluation = (1-np.array(evaluated_operand1)).astype(bool) + np.array(evaluated_operand1)*np.array(evaluated_operand2)
+    min_len_operand = min(len(evaluated_operand1), len(evaluated_operand2))
+
+    evaluation = (1-np.array(evaluated_operand1)).astype(bool)[:min_len_operand]
+    evaluation += np.array(evaluated_operand1)[:min_len_operand]*np.array(evaluated_operand2)[:min_len_operand]
     evaluation = list(evaluation)
 
   else:

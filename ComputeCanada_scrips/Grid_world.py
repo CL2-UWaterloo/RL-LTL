@@ -12,6 +12,7 @@ class Grid_world:
     
     if like != None:
       self.shape = like.shape
+      self.map_num = like.map_num
       self.map = like.map.copy()
       self.n_goals = like.n_goals
       self.n_obstacles = like.n_obstacles
@@ -95,7 +96,7 @@ class Grid_world:
           grid_world[1, [2,3]] = 2 # destination
           grid_world[3, [0,2]] = 2 # destination
           
-          # will add starting point later, randomly
+          # will add starting point later
 
         elif map == 7: # second case study of the "Control Synthesis from LTL Specifications using RL" Paper
 
@@ -106,7 +107,7 @@ class Grid_world:
           grid_world[3, 0] = 4 # a
           grid_world[4, 1] = 5 # c
           
-          # will add starting point later, randomly
+          # will add starting point later
 
         elif map == 10:
 

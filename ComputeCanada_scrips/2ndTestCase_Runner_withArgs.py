@@ -42,7 +42,7 @@ def run_simulation(grid_world_shape, n_goals, formula, predicates, model, ordere
         
         state_history, action_history, reward, better_policy = run_episode(grid_world, model, formula, predicates,
                                                 n_steps=n_steps, n_samples=n_samples, tow=tow, C=C, N=N, W=W, Q=Q, P=P,
-                                                random_move_chance = random_move_chance, verbose=0)
+                                                random_move_chance = random_move_chance, verbose=2)
         trajectory_history = [np.where(s==1)[0][0]*4 + np.where(s==1)[1][0] for s in state_history]
         last_position = trajectory_history[-1]
 
@@ -68,20 +68,21 @@ def run_simulation(grid_world_shape, n_goals, formula, predicates, model, ordere
 
 predicates={'a':[12], 'b':[2], 'c':[17], 'd':[3]}
 
-# Parse an expression
+# Parse the LTL expression
 full_t = "[] ( (~d) /\ ((b /\ ~ > b) -> >(~b % (a \/ c))) /\ (a -> >(~a % b))"
 full_t += " /\ ((~b /\ >b /\ ~>>b)->(~a % c)) /\ (c->(~a % b)) /\ ((b /\ >b) -> <>a))"
-if True:
+if args.LTLformula == None:
   t = "[] ( (~d) /\ (c->(~a % b)) )"
 else:
   t = args.LTLformula
 #    [] ( (~d) /\ (c->(~a % b)) /\ ((b /\ >b) -> <>a) /\ ((b /\ ~>b) -> >(~b % (a \/ c))) /\ (a -> >(~a % b))
 #  /\ ((~b /\ >b /\ ~>>b)->(~a % c)) /\ (c->(~a % b)) )
+
 formula = parser.parse(t)
 print(formula)
 
 model = build_model((5,4))
-tra = [17, 0, 1, 1, 2, 2, 0, 0, 12]
+tra = [17, 13, 9, 5, 6, 7, 6, 7, 2, 3]
 print(check_LTL(formula, tra, predicates))
 
 print("Deterministic Env, Training initiated...")
@@ -93,7 +94,6 @@ exp_results = []
 n_games= range(args.nruns)
 n_episodes = args.episodes
 
-
 for i in n_games:
   N, W, Q, P = {}, {}, {}, {}
   res, loc = run_simulation(7, n_goals=1, formula=formula,predicates=predicates,model=model,
@@ -104,12 +104,6 @@ for i in n_games:
 
   if i % 49 == 0:
     print("i=",i,"| total train_ress:",train_ress,"/",(i+1)*n_episodes)
-
-# plt.plot(n_games, exp_results)
-# plt.title("Det env, time-steps:50, #samples:50, training: ON")
-# plt.ylabel("Success rate (%)")
-# plt.xlabel("search depth of MCTS")
-# plt.show()
 
 print("#######################################")
 print("total train_ress:",train_ress,"/",len(n_games)*n_episodes)

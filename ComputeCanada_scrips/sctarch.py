@@ -4,6 +4,12 @@ from LTL import *
 x = [False, True, False, True, False, True]
 y = [True, True, True, False, False, True]
 
+
+x = [1]
+print(x[:-1])
+
+exit()
+
 predicates={'a':[12], 'b':[2], 'c':[17], 'd':[3]}
 
 trajectory = [0,0,0,1]
