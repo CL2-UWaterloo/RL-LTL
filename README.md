@@ -8,12 +8,18 @@ a -> Location of the agent
 O -> Obsticales
 G -> Location of the goal
 ___________________
-|     |  O  |  G  | 
+|     |  O  |  G  |
+
 |_____|_____|_____|
+
 |     |     |     |
+
 |_____|_____|_____|
+
 |  a  |  O  |     |
+
 |_____|_____|_____|
+
 
 Also assume we have the following simple LTL specification:
 <[]~O /\ <>a>
