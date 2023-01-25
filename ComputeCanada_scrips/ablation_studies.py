@@ -56,7 +56,7 @@ def run_simulation(map_num, n_goals, formula, predicates, model, ordered_goals=F
     #   if c>4: break
     return np.sum(rewards), last_position
 
-grid_world_0 = Grid_world(map_num=6, n_goals=1, ordered=False, rand_init=False)
+grid_world_0 = Grid_world(map_num=6 n_goals=1, ordered=False, rand_init=False)
 goal_locations = grid_world_0.get_locations(2, as_list=True)
 obstacle_locations = grid_world_0.get_locations(-1, as_list=True)
 

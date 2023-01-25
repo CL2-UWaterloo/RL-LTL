@@ -61,9 +61,12 @@ def run_simulation(grid_world_shape, n_goals, formula, predicates, model, ordere
           print("episode reward:",reward, ",model value estimate of last step", model(state_history[-1].reshape(1, -1))[1].numpy()[0][0])
           print("Action history:","(",len(action_history),")", action_history)
           print("Trajectory:", trajectory_history)
-        
-        rewards.append(reward)
 
+        for c,i in enumerate(N):
+          print(i, N[i])
+          if c>3: break    
+        rewards.append(reward)
+    
     return np.sum(rewards), last_position    
 
 predicates={'a':[12], 'b':[2], 'c':[17], 'd':[3]}
@@ -77,6 +80,8 @@ else:
   t = args.LTLformula
 #    [] ( (~d) /\ (c->(~a % b)) /\ ((b /\ >b) -> <>a) /\ ((b /\ ~>b) -> >(~b % (a \/ c))) /\ (a -> >(~a % b))
 #  /\ ((~b /\ >b /\ ~>>b)->(~a % c)) /\ (c->(~a % b)) )
+
+t = "[] ( (~d) /\ (c->(~a % b)) /\ ((b /\ >b) -> <>a) /\ ((b /\ ~ > b) -> >(~b % (a \/ c))) )"
 
 formula = parser.parse(t)
 print(formula)
@@ -101,7 +106,7 @@ for i in n_games:
                             random_move_chance=args.randomness, N=N, W=W, Q=Q, P=P, verbose=True, training=True)
   train_ress += res
   exp_results.append(res*(100//n_episodes))
-
+  print("___________________")
   if i % 49 == 0:
     print("i=",i,"| total train_ress:",train_ress,"/",(i+1)*n_episodes)
 
