@@ -12,6 +12,10 @@ G -> Location of the goal
 | E | E | E |
 | a | O | E |
 
+| First Header  | Second Header |
+| ------------- | ------------- |
+| Content Cell  | Content Cell  |
+| Content Cell  | Content Cell  |
 
 Also assume we have the following simple LTL specification:
 <[]~O /\ <>a>
