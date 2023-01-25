@@ -7,18 +7,9 @@ that the agent should abide within this grid world. For example, assume we have 
 a -> Location of the agent
 O -> Obsticales
 G -> Location of the goal
-___________________
-|     |  O  |  G  |
-
-|_____|_____|_____|
-
-|     |     |     |
-
-|_____|_____|_____|
-
-|  a  |  O  |     |
-
-|_____|_____|_____|
+| E | O  | G  |
+| E | E | E |
+| a | O | E |
 
 
 Also assume we have the following simple LTL specification:
