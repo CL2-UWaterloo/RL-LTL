@@ -8,14 +8,14 @@ a -> Location of the agent
 O -> Obsticales
 G -> Location of the goal
 | - | - | - |
-| E | O  | G  |
+|  |   |   |
 | E | E | E |
 | a | O | E |
 
-| First Header  | Second Header |
-| ------------- | ------------- |
-| Content Cell  | Content Cell  |
-| Content Cell  | Content Cell  |
+| E  | O | G |
+| ------------- | ------------- | ------------- |
+| E  | E  | E  |
+| a  | O  | E  |
 
 Also assume we have the following simple LTL specification:
 <[]~O /\ <>a>
