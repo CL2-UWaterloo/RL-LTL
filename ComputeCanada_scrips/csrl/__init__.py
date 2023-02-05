@@ -266,7 +266,7 @@ class ControlSynthesis:
                 reward_history.append(reward)
                 
             outcome = check_LTL(LTL_formula, trajectory, predicates)
-            if outcome[0]:
+            if len(outcome) > 0 and outcome[0]:
                 reward = 1
                 success_rate += 1
                 # print(k," - trajectory:",trajectory)

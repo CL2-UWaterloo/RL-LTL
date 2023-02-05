@@ -93,7 +93,12 @@ def check_LTL(formula, trajectory, predicates):
     min_len_operand = min(len(evaluated_operand1), len(evaluated_operand2))
 
     evaluation = (1-np.array(evaluated_operand1)).astype(bool)[:min_len_operand]
-    evaluation += np.array(evaluated_operand1)[:min_len_operand]*np.array(evaluated_operand2)[:min_len_operand]
+    try:
+      evaluation += np.array(evaluated_operand1)[:min_len_operand]*np.array(evaluated_operand2)[:min_len_operand]
+    except:
+      pass
+      # print(trajectory)
+      # print(evaluated_operand1, evaluated_operand2)
     evaluation = list(evaluation)
 
   else:
