@@ -1,12 +1,13 @@
+print("------------")
 from NN import *
 from LTL import *
-
+print("------------")
 from csrl.mdp import GridMDP
 from csrl.oa import OmegaAutomaton
 from csrl import ControlSynthesis
 import numpy as np
 from matplotlib import pyplot as plt
-
+print("------------")
 ### from the Nursary case ###
 # LTL Specification
 # ltl = ('G ('
@@ -17,7 +18,7 @@ from matplotlib import pyplot as plt
 #     '(c->((!a) U b)) & '
 #     '((b & (X b))->(F a))'
 # ')')
-
+print("------------")
 ltl = ('G ('
     '(!d) & '
     '(c->((!a) U b)) & '
@@ -26,7 +27,7 @@ ltl = ('G ('
     '(((!b) & (X b) & (!(X X b)))->((!a) U c)) &'
     '(a->(X ((!a) U b))) '
 ')')
-
+print("------------")
 # Translate the LTL formula to an LDBA
 oa = OmegaAutomaton(ltl)
 print('Number of Omega-automaton states (including the trap state):',oa.shape[1])
