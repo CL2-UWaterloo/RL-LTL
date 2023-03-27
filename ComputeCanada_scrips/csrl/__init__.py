@@ -1,4 +1,5 @@
 from LTL import check_LTL
+import time
 
 """Control Synthesis using Reinforcement Learning.
 """
@@ -193,7 +194,7 @@ class ControlSynthesis:
         return ch_states
 
     def MC_learning(self, model, LTL_formula, predicates, C=3, tow=1, n_samples=300,
-                    search_depth=None, N={}, W={}, Q={}, P={}, verbose=0.5,
+                    search_depth=None, N={}, W={}, Q={}, P={}, verbose=0.5, visited=set(),
                     start=None,T=None,K=None):
         """Performs the MC-learning algorithm and returns the action values.
         
@@ -213,37 +214,39 @@ class ControlSynthesis:
         Q: array, shape=(n_pairs,n_qs,n_rows,n_cols,n_actions) 
             The action values learned.
         """
-        
+
         T = T if T else np.prod(self.shape[:-1])
         K = K if K else 100000
         if search_depth == None: search_depth = T
         success_rate = 0
+        print('visoted:', len(visited))
         
         for k in range(K):
             reward = 0
             state_history, channeled_states, action_history, reward_history, better_policy, trajectory = [], [], [], [], [] ,[]
-            state = (self.shape[0]-1,self.oa.q0)+(start if start else self.mdp.random_state())
+            state = (self.shape[0]-1,self.oa.q0)+(start if start else self.mdp.random_state(empty=True))
             trajectory.append(state[-2]*self.shape[-2]+state[-1])
             state_history.append(state)
             channeled_states.append(self.ch_states[state])
             reward = self.reward[state]
             reward_history.append(reward)
             # if verbose>0: print("N[s_0][:5]:",N[state][:5])
-            visited = set()
+            
             for t in range(T-1):
                 
                 ###### check if LTL specs are violated
                 if len(trajectory)>0 and trajectory[-1] in predicates['d']:break
-
                 MCST_depth = min(T-t-1, search_depth)
                 # print(MCST_depth)
                 # Choose Action
+                t1 = time.time()
                 Pi = self.MCTS(model, state, LTL_formula, predicates, trajectory[:-1], N, W, Q, P, visited,
                                 n_samples=n_samples, depth=MCST_depth, tow=tow, C=C)
+                t2 = time.time()
+                # print(t2-t1, "MCTS")
                 better_policy.append(Pi.copy())
                 action = np.random.choice(len(Pi), p=Pi)
                 action_history.append(action)
-                
                 # get the next state
                 states, probs = self.transition_probs[state][action]
                 next_state = states[np.random.choice(len(states),p=probs)]
@@ -269,14 +272,14 @@ class ControlSynthesis:
             if len(outcome) > 0 and outcome[0]:
                 reward = 1
                 success_rate += 1
-                # print(k," - trajectory:",trajectory)
+                print("+++ :",trajectory)
                 if verbose>0:
                     print("success ep:",k+1,"/",K)
                     # print("states (if in acc)", [self.oa.acc[q][self.mdp.label[r,c]][0] for (i,q,r,c) in state_history])
                 break
             else:
-                print("FAIL: states (if in acc)", [self.oa.acc[q][self.mdp.label[r,c]][0] for (i,q,r,c) in state_history])
-                print("trajectory:",trajectory)
+                # print("FAIL: states (if in acc)", [self.oa.acc[q][self.mdp.label[r,c]][0] for (i,q,r,c) in state_history])
+                print("--- :",trajectory)
         if verbose>0:
             print("trajectory:",trajectory)
             print("action_history:",action_history)
@@ -286,7 +289,7 @@ class ControlSynthesis:
         return state_history, channeled_states, trajectory, action_history, reward_history, better_policy
 
     def MCTS_rec(self, model, root, LTL_formula, trajectory, predicates, N={}, W={}, Q={}, P={}, visited=set(), C=1, depth=100, random_move_chance=0, foo=0):
-        
+
         location = root[-2]*self.shape[-2]+root[-1]
         trajectory.append(location)
 

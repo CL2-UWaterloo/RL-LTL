@@ -23,7 +23,7 @@ def check_LTL(formula, trajectory, predicates):
 
   # check if current formula needs evaluation
   if type(formula)==list: # already evaluated
-    return list
+    return formula
   
   # check if current formula is a predicate or not
   if formula[0]==None: # a predicate

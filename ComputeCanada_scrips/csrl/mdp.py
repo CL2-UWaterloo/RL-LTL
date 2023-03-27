@@ -116,7 +116,7 @@ class GridMDP():
         for state in product(range(n_rows),range(n_cols)):
             yield state
         
-    def random_state(self):
+    def random_state(self, empty=False):
         """Generates a random state coordinate.
         
         Returns
@@ -126,6 +126,10 @@ class GridMDP():
         """
         n_rows, n_cols = self.shape
         state = np.random.randint(n_rows),np.random.randint(n_cols)
+
+        while(empty and (self.structure[state]!='E' or self.label[state]==('d',))):
+            state = np.random.randint(n_rows),np.random.randint(n_cols)
+
         return state
                     
     def get_transition_prob(self,state,action_name):
@@ -177,6 +181,23 @@ class GridMDP():
             probs.append(1-probs_sum)
 
         return states, probs
+    
+    def get_predicates(self):
+        aps = list(np.unique(self.label))
+        aps.pop(aps.index(()))
+        aps = [str(x[0]) for x in aps]
+        predicates = {}
+        for i in aps:
+            predicates[i] = []
+
+        index = 0
+        for i in self.label:
+            for j in i:
+                if len(j)>0 and str(j[0]) in aps:
+                    predicates[str(j[0])].append(index)
+                index += 1
+        
+        return predicates
     
     def plot(self, value=None, policy=None, agent=None, save=None, hidden=[], path={}):
         """Plots the values of the states as a color matrix.
