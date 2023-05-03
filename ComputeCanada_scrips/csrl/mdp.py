@@ -127,7 +127,7 @@ class GridMDP():
         n_rows, n_cols = self.shape
         state = np.random.randint(n_rows),np.random.randint(n_cols)
 
-        while(empty and (self.structure[state]!='E' or self.label[state]==('d',))):
+        while(empty and (self.structure[state]!='E' or self.label[state]!=())):
             state = np.random.randint(n_rows),np.random.randint(n_cols)
 
         return state

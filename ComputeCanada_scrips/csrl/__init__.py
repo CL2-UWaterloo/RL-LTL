@@ -146,6 +146,8 @@ class ControlSynthesis:
             epsilon = np.max((1.0*(1 - 1.5*k/K),0.01))
             for t in range(T):
                 reward = self.reward[state]
+                # if reward>0:
+                    # print("!!!!")
                 gamma = self.discountB if reward else self.discount
                 
                 # Follow an epsilon-greedy policy
@@ -160,7 +162,6 @@ class ControlSynthesis:
                 
                 # Q-update
                 Q[state][action] += alpha * (reward + gamma*np.max(Q[next_state]) - Q[state][action])
-
                 state = next_state
         
         return Q
@@ -219,7 +220,7 @@ class ControlSynthesis:
         K = K if K else 100000
         if search_depth == None: search_depth = T
         success_rate = 0
-        print('visoted:', len(visited))
+        # print('visited:', len(visited))
         
         for k in range(K):
             reward = 0
