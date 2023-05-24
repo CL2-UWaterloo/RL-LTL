@@ -100,7 +100,7 @@ class ControlSynthesis:
         """
         n_mdps, n_qs, n_rows, n_cols, n_actions = self.shape
         mdp_state = np.random.randint(n_rows),np.random.randint(n_cols)
-        return (np.random.randint(n_pairs),np.random.randint(n_qs)) + mdp_state
+        return (np.random.randint(n_mdps),np.random.randint(n_qs)) + mdp_state
     
     def build_gridworld_from_state(self, row, col):
         
@@ -134,7 +134,8 @@ class ControlSynthesis:
         Q: array, shape=(n_pairs,n_qs,n_rows,n_cols,n_actions) 
             The action values learned.
         """
-        
+        visited_states = []
+
         T = T if T else np.prod(self.shape[:-1])
         K = K if K else 100000
         
@@ -162,9 +163,10 @@ class ControlSynthesis:
                 
                 # Q-update
                 Q[state][action] += alpha * (reward + gamma*np.max(Q[next_state]) - Q[state][action])
+                visited_states.append(state)
                 state = next_state
         
-        return Q
+        return Q, visited_states
     
     def state_vectors(self):
     
@@ -194,7 +196,7 @@ class ControlSynthesis:
                 idx += 1
         return ch_states
 
-    def MC_learning(self, model, LTL_formula, predicates, C=3, tow=1, n_samples=300,
+    def MC_learning(self, model, LTL_formula, predicates, rewards, C=3, tow=1, n_samples=300,
                     search_depth=None, N={}, W={}, Q={}, P={}, verbose=0.5, visited=set(),
                     start=None,T=None,K=None):
         """Performs the MC-learning algorithm and returns the action values.
@@ -236,12 +238,13 @@ class ControlSynthesis:
             for t in range(T-1):
                 
                 ###### check if LTL specs are violated
-                if len(trajectory)>0 and trajectory[-1] in predicates['d']:break
+                if len(trajectory)>0 and 'd' in predicates and trajectory[-1] in predicates['d']:break
+
                 MCST_depth = min(T-t-1, search_depth)
                 # print(MCST_depth)
                 # Choose Action
                 t1 = time.time()
-                Pi = self.MCTS(model, state, LTL_formula, predicates, trajectory[:-1], N, W, Q, P, visited,
+                Pi = self.MCTS(model, state, LTL_formula, predicates, trajectory[:-1], state_history, rewards, N, W, Q, P, visited,
                                 n_samples=n_samples, depth=MCST_depth, tow=tow, C=C)
                 t2 = time.time()
                 # print(t2-t1, "MCTS")
@@ -273,14 +276,15 @@ class ControlSynthesis:
             if len(outcome) > 0 and outcome[0]:
                 reward = 1
                 success_rate += 1
-                print("+++ :",trajectory)
+                print("LTL [+++] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
                 if verbose>0:
                     print("success ep:",k+1,"/",K)
                     # print("states (if in acc)", [self.oa.acc[q][self.mdp.label[r,c]][0] for (i,q,r,c) in state_history])
                 break
             else:
                 # print("FAIL: states (if in acc)", [self.oa.acc[q][self.mdp.label[r,c]][0] for (i,q,r,c) in state_history])
-                print("--- :",trajectory)
+                print("LTL [---] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
+
         if verbose>0:
             print("trajectory:",trajectory)
             print("action_history:",action_history)
@@ -289,19 +293,25 @@ class ControlSynthesis:
         
         return state_history, channeled_states, trajectory, action_history, reward_history, better_policy
 
-    def MCTS_rec(self, model, root, LTL_formula, trajectory, predicates, N={}, W={}, Q={}, P={}, visited=set(), C=1, depth=100, random_move_chance=0, foo=0):
+    def MCTS_rec(self, model, root, LTL_formula, trajectory, episode, predicates, rewards, N={}, W={}, Q={}, P={}, visited=set(), C=1, depth=100, random_move_chance=0, foo=0):
+        
+        LTL_coef = 0.5
 
         location = root[-2]*self.shape[-2]+root[-1]
+        episode.append(root)
         trajectory.append(location)
-
+        # if rewards[root]>0: print("!!!")
         ######## check if LTL specs are violated
-        if location in predicates['d']: return -1
+        if 'd' in predicates and location in predicates['d']: return -1
 
         if depth < 1: # search depth limit reached
+            ldba_rew = np.sum([rewards[i] for i in episode])
+            # ldba_rew = 0
             outcome = check_LTL(LTL_formula, trajectory, predicates)
             if outcome[0]:
-                return 1
-            else: return -1
+                # print("winning traj:", len(trajectory), trajectory)
+                return ldba_rew + LTL_coef
+            else: return ldba_rew - LTL_coef
         
         elif root not in visited: # unexplored leaf node
             visited.add(root)
@@ -309,6 +319,7 @@ class ControlSynthesis:
             model_output = model(model_input[np.newaxis])
             value = model_output[1].numpy()[0][0]
             P[root] = model_output[0].numpy()[0]
+            # ldba_rew = np.sum([rewards[i] for i in episode])
             return value
 
         ### selecting the next node to expand ###
@@ -319,16 +330,23 @@ class ControlSynthesis:
             temp = (U + Q[root])
             temp[None_idx] = -99999
             next_move = temp.argmax()
-        except:
-            print(U)
-            print(root)
-            print(W)
-            print(None_idx)
+            # print(temp[:4])
+        except Exception as e:
+            print("exception in finding next move MCTS")
+            print(e)
+            print("additional info:")
+            print("U:",U)
+            print("root:",root)
+            print("W:", W)
+            print("None_id:",None_idx)
 
         ### creating the next subtree ###
         try:
             states, probs = self.transition_probs[root][next_move]
-        except:
+        except Exception as e:
+            print("exception in observing next state MCTS")
+            print(e)
+            print("additional info:")
             print("(U + Q[root])",(U + Q[root]))
             print("None_idx:",None_idx)
             print("next move:", next_move)
@@ -337,17 +355,17 @@ class ControlSynthesis:
         next_state = states[np.random.choice(len(states),p=probs)]
 
         ### expanding the next move and back tracking ###
-        value = self.MCTS_rec(model, next_state, LTL_formula, trajectory, predicates,  N, W, Q, P, visited=visited, C=C, depth=depth-1, foo=foo)
+        value = self.MCTS_rec(model, next_state, LTL_formula, trajectory, episode, predicates, rewards, N, W, Q, P, visited=visited, C=C, depth=depth-1, foo=foo)
         N[root][next_move] += 1
         W[root][next_move] += value
         Q[root][next_move] = W[root][next_move]/N[root][next_move]
 
         return value
 
-    def MCTS(self, model, root, LTL_formula, predicates, trajectory, N, W, Q, P, visited=set(), n_samples=100, tow=1, C=1, depth=100, foo=0):
-
+    def MCTS(self, model, root, LTL_formula, predicates, trajectory, episode, rewards, N, W, Q, P, visited=set(), n_samples=100, tow=1, C=1, depth=100, foo=0):
+        
         for sample in range(n_samples):
-            self.MCTS_rec(model, root, LTL_formula, trajectory.copy(), predicates,  N, W, Q, P, visited=visited, C=C, depth=depth, foo=foo)
+            self.MCTS_rec(model, root, LTL_formula, trajectory.copy(), episode.copy(), predicates, rewards, N, W, Q, P, visited=visited, C=C, depth=depth, foo=foo)
 
         Pi = (N[root]**(1/tow)) / np.sum(N[root]**(1/tow))
 
