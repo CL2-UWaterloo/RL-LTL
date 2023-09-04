@@ -80,7 +80,7 @@ class OmegaAutomaton:
         
         # Translate the LTL formula to an OA using Rabinizer 4.
         
-        out=check_output(['ltl2ldba', '-d', '-e', ltl] if self.oa_type == 'ldba' else ['ltl2dra', '-c', ltl], shell=True)
+        out=check_output(['ltl2ldba', '-d', '-e', ltl] if self.oa_type == 'ldba' else ['ltl2dra', '-c', ltl])
         
         # Split the output into two parts: the header and the body
         header, body = out.decode('utf-8').split('--BODY--\n')

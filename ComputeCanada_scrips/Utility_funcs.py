@@ -58,7 +58,7 @@ def state_vectors(csrl):
             idx += 1
     return vectors
 
-def channeled_states(csrl, enc):
+def channeled(csrl, enc):
     # assuming state_shape is 4 dim
     
     size = csrl.shape[0]*csrl.shape[1]*csrl.shape[2]*csrl.shape[3]
@@ -74,7 +74,7 @@ def channeled_states(csrl, enc):
 
 def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, tow=1, n_samples=300,
                 search_depth=None, N={}, W={}, Q={}, P={}, verbose=0.5, visited=set(),
-                start=None,T=None,K=None, run_num=None, ltl_f_rew=None):
+                start=None,T=None,K=None, run_num=None, ltl_f_rew=None, NN_value_active=False, LTL_coef=10):
     """Performs the MC-learning algorithm and returns the action values.
     
     Parameters
@@ -93,7 +93,7 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
     Q: array, shape=(n_pairs,n_qs,n_rows,n_cols,n_actions) 
         The action values learned.
     """
-
+    LTL_coef *= 100
     T = T if T else np.prod(csrl.shape[:-1])
     K = K if K else 100000
     if search_depth == None: search_depth = T
@@ -121,17 +121,19 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
         for t in range(T-1):
             
             ###### check if LTL specs are violated
-            if len(trajectory)>0 and 'd' in predicates and trajectory[-1] in predicates['d']:break
+            if len(trajectory)>0 and 'x' in predicates and trajectory[-1] in predicates['x']:break
 
             MCST_depth = min(T-t-1, search_depth)
             # print(MCST_depth)
             # Choose Action
             # print(t+1,")","Depth:",MCST_depth,end=" | ")
-            Pi, acc_valuec = MCTS(csrl, model, state, LTL_formula, predicates, trajectory[:-1], state_history[:-1], rewards, ch_states, N, W, Q, P, visited,
-                            n_samples=n_samples, depth=MCST_depth, tow=tow, C=C, ltl_f_rew=ltl_f_rew)
-            if t==0: print(run_num, ") MCTS conf:", round(acc_valuec, 2), ", det:", round(Pi.max(), 2), end=" | ")
+            Pi, acc_value = MCTS(csrl, model, state, LTL_formula, predicates, trajectory[:-1], state_history[:-1], rewards,
+                                 ch_states, N, W, Q, P, visited, n_samples=n_samples, depth=MCST_depth, tow=tow, C=C,
+                                 ltl_f_rew=ltl_f_rew, NN_value_active=NN_value_active, LTL_coef=LTL_coef)
+            if t==0: print(run_num, ") MCTS conf:", round(acc_value, 2), ", det:", round(Pi.max(), 2), end=" | ")
+            NN_value_active = True if acc_value>0 else False
             # print(t2-t1, "MCTS")
-            MCTS_win_rate.append(acc_valuec)
+            MCTS_win_rate.append(acc_value)
             better_policy.append(Pi.copy())
             action = np.random.choice(len(Pi), p=Pi)
             action_history.append(action)
@@ -156,10 +158,16 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
             state_history.append(state)
             channeled_states.append(ch_states[state].copy())
             reward_history.append(reward)
-            
-        # outcome = check_LTL(LTL_formula, trajectory, predicates)
-        # if len(outcome) > 0 and outcome[0]:
-        if reward_history[-1]>0:
+        
+        if ltl_f_rew:
+            outcome = check_LTL(LTL_formula, trajectory, predicates)
+            if len(outcome) > 0 and outcome[0]:
+                reward = 1
+                success_rate += 1
+                print("LTL [+++] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
+            else:
+                print("LTL [---] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
+        elif reward_history[-1]>0:
             reward = 1
             success_rate += 1
             print("LTL [+++] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
@@ -177,15 +185,15 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
         with open(f"Log_run.txt", 'a') as f:
             f.write(str(run_num))
             f.write(") trajectory: ")
-            f.write(','.join(str(i) for i in trajectory))
-            f.write("\n\nMCTS win rate: ")
-            f.write(','.join(str(i) for i in MCTS_win_rate))
+            f.write(', '.join(str(i) for i in trajectory))
             f.write("\n\n action_history: ")
-            f.write(','.join(str(i) for i in action_history))
+            f.write(', '.join(str(i) for i in action_history))
+            f.write("\n\nMCTS win rate: ")
+            f.write(', '.join(str(i) for i in [round(i, 2)for i in MCTS_win_rate]))
             f.write("\n\n state history: ")
-            f.write(','.join(str(i) for i in state_history))
+            f.write(', '.join(str(i) for i in state_history))
             f.write("\n\n reward_history: ")
-            f.write(','.join(str(i) for i in [round(i, 2)for i in reward_history]))
+            f.write(', '.join(str(i) for i in [round(i, 2)for i in reward_history]))
             f.write("\n\n better_policy: ")
             for i in better_policy:
                 f.write(", ".join(str(j) for j in [round(j, 2) for j in i]))
@@ -201,9 +209,8 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
     
     return state_history, channeled_states, trajectory, action_history, reward_history, better_policy
 
-def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, rewards, ch_states, N={}, W={}, Q={}, P={}, visited=set(), C=1, depth=100, random_move_chance=0, ltl_f_rew=None, foo=1):
-    
-    LTL_coef = 100
+def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, rewards, ch_states, N={}, W={}, Q={}, P={},
+             visited=set(), C=1, depth=100, random_move_chance=0, ltl_f_rew=None, NN_value_active=True, LTL_coef=1000, foo=1):
 
     location = root[-2]*csrl.shape[-2]+root[-1]
     episode.append(root)
@@ -211,7 +218,7 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
     # if rewards[root]>0: print("!!!")
     ######## check if LTL specs are violated
     # print("t",len(episode)+depth)
-    if 'd' in predicates and location in predicates['d']: return -1
+    if 'x' in predicates and location in predicates['x']: return -0.8
 
     if depth < 1: # search depth limit reached
         if ltl_f_rew:
@@ -219,13 +226,12 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
             outcome = check_LTL(LTL_formula, trajectory, predicates)
             ldba_rew = outcome[0] + ldba_rew
         else:
-            ldba_rew = np.sum([rewards[i] for i in episode])*(1 + LTL_coef*rewards[root])
-        
-        return ldba_rew if ldba_rew>0 else -0.5
+            ldba_rew = np.sum([rewards[i] for i in episode])*(LTL_coef*rewards[root])
+        return ldba_rew if ldba_rew>0 else -0.3
         
         # if ldba_rew>0: print("MCTS lookahead:", ldba_rew)
 
-    
+
         # 
         # ldba_rew = 0
         # 
@@ -243,7 +249,8 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
         value = model_output[1].numpy()[0][0]
         P[root] = model_output[0].numpy()[0]
         # ldba_rew = np.sum([rewards[i] for i in episode])
-        return value
+        if NN_value_active: return value
+        else: return 0.7
 
     ### selecting the next node to expand ###
     U = C * P[root] * (np.sqrt(np.sum(N[root])))/(1+N[root])
@@ -278,17 +285,22 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
     next_state = states[np.random.choice(len(states),p=probs)]
 
     ### expanding the next move and back tracking ###
-    value = MCTS_rec(csrl, model, next_state, LTL_formula, trajectory, episode, predicates, rewards, ch_states, N, W, Q, P, visited=visited, C=C, depth=depth-1, ltl_f_rew= ltl_f_rew, foo=0)
+    value = MCTS_rec(csrl, model, next_state, LTL_formula, trajectory, episode, predicates, rewards, ch_states, N, W, Q, P,
+                     visited=visited, C=C, depth=depth-1, ltl_f_rew= ltl_f_rew, NN_value_active=NN_value_active, LTL_coef=LTL_coef,
+                     foo=0)
     N[root][next_move] += 1
     W[root][next_move] += value
     Q[root][next_move] = W[root][next_move]/N[root][next_move]
 
     return value
 
-def MCTS(csrl, model, root, LTL_formula, predicates, trajectory, episode, rewards, ch_states, N, W, Q, P, visited=set(), n_samples=100, tow=1, C=1, depth=100, ltl_f_rew=None, foo=1):
+def MCTS(csrl, model, root, LTL_formula, predicates, trajectory, episode, rewards, ch_states, N, W, Q, P, visited=set(),
+         n_samples=100, tow=1, C=1, depth=100, ltl_f_rew=None, NN_value_active=True, LTL_coef=100, foo=1):
     acc_value = 0
     for sample in range(n_samples):
-        acc_value += MCTS_rec(csrl, model, root, LTL_formula, trajectory.copy(), episode.copy(), predicates, rewards, ch_states, N, W, Q, P, visited=visited, C=C, depth=depth, ltl_f_rew=ltl_f_rew, foo=foo)
+        acc_value += MCTS_rec(csrl, model, root, LTL_formula, trajectory.copy(), episode.copy(), predicates, rewards,
+                              ch_states, N, W, Q, P, visited=visited, C=C, depth=depth, ltl_f_rew=ltl_f_rew,
+                              NN_value_active=NN_value_active, LTL_coef=LTL_coef, foo=foo)
 
     Pi = (N[root]**(1/tow)) / np.sum(N[root]**(1/tow))
 
@@ -300,7 +312,7 @@ def MCTS(csrl, model, root, LTL_formula, predicates, trajectory, episode, reward
         print("depth:",depth-(len(trajectory)+1))
         print("trajectory", trajectory, "+", root[-2]*csrl.shape[-2]+root[-1])
 
-    return Pi, acc_value
+    return Pi, acc_value/n_samples
 
 def run_Q_test(csrl, policy, LTL_formula, predicates, start=None,T=100, runs=100, verbose=1,  animation=None):
         

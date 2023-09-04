@@ -307,11 +307,12 @@ class ControlSynthesis:
         if depth < 1: # search depth limit reached
             ldba_rew = np.sum([rewards[i] for i in episode])
             # ldba_rew = 0
-            outcome = check_LTL(LTL_formula, trajectory, predicates)
-            if outcome[0]:
-                # print("winning traj:", len(trajectory), trajectory)
-                return ldba_rew + LTL_coef
-            else: return ldba_rew - LTL_coef
+            # outcome = check_LTL(LTL_formula, trajectory, predicates)
+            # if outcome[0]:
+            #     # print("winning traj:", len(trajectory), trajectory)
+            #     return ldba_rew + LTL_coef
+            # else: return ldba_rew - LTL_coef
+            return ldba_rew
         
         elif root not in visited: # unexplored leaf node
             visited.add(root)
