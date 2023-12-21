@@ -165,6 +165,7 @@ class ControlSynthesis:
                 Q[state][action] += alpha * (reward + gamma*np.max(Q[next_state]) - Q[state][action])
                 visited_states.append(state)
                 state = next_state
+            
         
         return Q, visited_states
     
@@ -462,7 +463,14 @@ class ControlSynthesis:
             Wheather or not the trajectory satisfies the LTL formula
         """
         T = T if T else np.prod(self.shape[:-1])
-        state = (self.shape[0]-1,self.oa.q0)+(start if start else self.mdp.random_state())
+        
+        if start: state = (self.shape[0]-1,self.oa.q0) + start
+        else:
+            state = self.mdp.random_state()
+            while(self.mdp.structure[state]!='E' or self.mdp.label[state]!=()):
+                state = self.mdp.random_state()
+            state = (self.shape[0]-1,self.oa.q0) + state
+
         episode = [state]
         trajectory = [state[-2]*self.shape[-2]+state[-1]]
 
@@ -478,7 +486,7 @@ class ControlSynthesis:
             t=IntSlider(value=0,min=0,max=T-1)
             interact(plot_agent,t=t)
             
-        outcome = check_LTL(LTL_formula, trajectory, predicates)
+        outcome = self.reward[episode[-1]]>0
 
         if animation:
             pad=5
@@ -489,7 +497,7 @@ class ControlSynthesis:
                 plt.close()
             os.system('ffmpeg -r 3 -i '+animation+os.sep+'%0'+str(pad)+'d.png -vcodec libx264 -y '+animation+'.mp4')
         
-        return episode, outcome[0]
+        return episode, outcome
 
     def run_Q_test(self,policy, LTL_formula, predicates, start=None,T=100, runs=100, verbose=1,  animation=None):
         
