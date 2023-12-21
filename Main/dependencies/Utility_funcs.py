@@ -1,5 +1,5 @@
 import numpy as np
-from LTL import *
+from dependencies.LTL import *
 
 def get_predicates(grid_mdp):
         aps = list(np.unique(grid_mdp.label))
@@ -187,7 +187,7 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
 
     
     if run_num!=None:
-        with open(f"Log_run.txt", 'a') as f:
+        with open(f"outputs/Log_run.txt", 'a') as f:
             f.write(str(run_num))
             f.write(") trajectory: ")
             f.write(', '.join(str(i) for i in trajectory))
