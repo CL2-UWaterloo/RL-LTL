@@ -1,0 +1,2 @@
+model_checkpoint_path: "d50_s100_t50"
+all_model_checkpoint_paths: "d50_s100_t50"
