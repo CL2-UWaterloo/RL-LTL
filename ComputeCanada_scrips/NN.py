@@ -11,11 +11,27 @@ def build_model(grid_world_shape, Pi_shape=5):
   x = Dense(32, activation='relu')(x0)
   x = Dense(16, activation='relu')(x)
   move_predictions = Dense(Pi_shape, activation='softmax')(x)
-  rew_predictions = Dense(1, activation='tanh')(x)
+  value_predictions = Dense(1, activation='tanh')(x)
 
-  model = Model(inputs=inputs, outputs=(move_predictions, rew_predictions))
+  model = Model(inputs=inputs, outputs=(move_predictions, value_predictions))
   # model = Model(inputs=inputs, outputs=move_predictions)
   model.compile(optimizer='adam',
                 loss=['categorical_crossentropy', 'mse'],
+                metrics=['accuracy'])
+  return model
+
+def build_policy_model(grid_world_shape, Pi_shape):
+  inputs = Input(shape=grid_world_shape)
+  x0 = Flatten()(inputs)
+  x = Dense(32, activation='relu')(x0)
+  # x = Dense(32, activation='relu')(x)
+  x = Dense(16, activation='relu')(x)
+  move_predictions = Dense(tf.keras.backend.prod(Pi_shape), activation='softmax')(x)
+  policy = keras.layers.Reshape(Pi_shape)(move_predictions)
+
+  model = Model(inputs=inputs, outputs=(policy))
+  # model = Model(inputs=inputs, outputs=move_predictions)
+  model.compile(optimizer='adam',
+                loss=['categorical_crossentropy'],
                 metrics=['accuracy'])
   return model
