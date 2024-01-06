@@ -215,9 +215,13 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
     return state_history, channeled_states, trajectory, action_history, reward_history, better_policy, best_val_len
 
 def reshaped_rew(value, len, best_val_len):
-    value_star, len_star = best_val_len
-    reshaped_value = (((len_star/len)**2) * (value/value_star)) * value
-    return min(reshaped_value, 1)
+    # THIS WAY OF RESHASPING THE REWARDS HAS A PROBLEM. THE FIRST TIME A BETTER VALUE IS SEEN IT RESHAPES
+    # INTO A HIGHER REWARD WHICH LATER DAMPENS ALL REHSAPED REWARDS OF THE SAME VALUE. SO REVERTING TO 
+    # JUST RETURNING THE VALUE INSTEAD
+    # value_star, len_star = best_val_len
+    # reshaped_value = (((len_star/len)**2) * (value/value_star)) * value
+    # return min(reshaped_value, 1)
+    return value
 
 def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, rewards, ch_states, N={}, W={}, Q={}, P={},
              visited=set(), C=1, depth=100, random_move_chance=0, ltl_f_rew=None, NN_value_active=True, LTL_coef=1000, danger_zone='d',
@@ -240,7 +244,7 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
             ldba_rew = np.sum([rewards[i] for i in episode])*(LTL_coef*rewards[root])
         if ldba_rew>0:
             reshaped = reshaped_rew(ldba_rew, len(trajectory), best_val_len)
-            # print(episode[0], ldba_rew, reshaped)
+            # print(episode[0], ldba_rew, reshaped, best_val_len)
             return (reshaped, len(trajectory))
             
     if depth < 1: # search depth limit reached
