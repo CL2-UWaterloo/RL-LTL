@@ -156,10 +156,13 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
             
             state = next_state
             
-            reward = csrl.reward[state]
             trajectory.append(state[-2]*csrl.shape[-2]+state[-1])
             state_history.append(state)
             channeled_states.append(ch_states[state].copy())
+            if ltl_f_rew:
+                reward = check_LTL(LTL_formula, trajectory, predicates)[0]
+            else:
+                reward = csrl.reward[state]
             reward_history.append(reward)
 
             if reachability and reward>0: break # if the problem is expepicilty a reachability problem, once we reach an acc state we are done.
@@ -237,24 +240,29 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
 
     if reachability: # if the problem is expepicilty a reachability problem
         if ltl_f_rew:
-            ldba_rew = np.sum([rewards[i] for i in episode])
+            # ldba_rew = np.sum([rewards[i] for i in episode])
             outcome = check_LTL(LTL_formula, trajectory, predicates)
-            ldba_rew = outcome[0]*(1+ldba_rew)
+            # ldba_rew = outcome[0]*(1+ldba_rew)
+            rew = outcome[0]
+            # if root == (0, 1, 3, 0): print(ldba_rew)
         else:
-            ldba_rew = np.sum([rewards[i] for i in episode])*(LTL_coef*rewards[root])
-        if ldba_rew>0:
-            reshaped = reshaped_rew(ldba_rew, len(trajectory), best_val_len)
+            rew = np.sum([rewards[i] for i in episode])*(LTL_coef*rewards[root])
+        if rew>0:
             # print(episode[0], ldba_rew, reshaped, best_val_len)
-            return (reshaped, len(trajectory))
+            # reshaped = reshaped_rew(ldba_rew, len(trajectory), best_val_len)
+            # return (reshaped, len(trajectory))
+            return (rew, len(trajectory))
             
     if depth < 1: # search depth limit reached
         if ltl_f_rew:
-            ldba_rew = np.sum([rewards[i] for i in episode])
+            # ldba_rew = np.sum([rewards[i] for i in episode])
             outcome = check_LTL(LTL_formula, trajectory, predicates)
-            ldba_rew = outcome[0] + ldba_rew
+            # ldba_rew = outcome[0] + ldba_rew
+            rew = outcome[0]
         else:
-            ldba_rew = np.sum([rewards[i] for i in episode])*(1/LTL_coef + LTL_coef*rewards[root])
-        return (reshaped_rew(ldba_rew, len(trajectory), best_val_len), len(trajectory)) if ldba_rew>0 else (-0.5, len(trajectory))
+            rew = np.sum([rewards[i] for i in episode])*(1/LTL_coef + LTL_coef*rewards[root])
+        # return (reshaped_rew(ldba_rew, len(trajectory), best_val_len), len(trajectory)) if ldba_rew>0 else (-0.5, len(trajectory))
+        return (rew, len(trajectory)) if rew>0 else (-0.5, len(trajectory))
         
         # if ldba_rew>0: print("MCTS lookahead:", ldba_rew)
 
@@ -337,32 +345,36 @@ def MCTS(csrl, model, root, LTL_formula, predicates, trajectory, episode, reward
 
     Pi = (N[root]**(1/tow)) / np.sum(N[root]**(1/tow))
 
-    if any(np.isnan(Pi)): # for debugging puposes
+    if any(np.isnan(Pi)): # for debugging purposes
         print("Warning")
         print("Pi:",Pi)
         print("N[root]:",N[root])
         print("root:", root)
-        print("depth:",depth-(len(trajectory)+1))
+        print("depth:",depth)
         print("trajectory", trajectory, "+", root[-2]*csrl.shape[-2]+root[-1])
 
     # print(Pi, acc_value/n_samples, best_val_len)
     return Pi, acc_value/n_samples, best_val_len[root]
 
-def run_Q_test(csrl, policy, LTL_formula, predicates, start=None,T=100, runs=100, verbose=1,  animation=None, reachability=False):
+def run_Q_test(csrl, policy, LTL_formula, predicates, start=None, T=100, runs=100, verbose=1,  animation=None, reachability=False):
         
     print(f"Running {runs} simulations with {T} time-steps...")
     rewards = []
     episodes = []
     for r in range(runs):
-        episode, rew = csrl.simulate(policy, LTL_formula, predicates, start=start,T=T, plot=verbose>=3, animation=animation)
+        episode, rew = csrl.simulate(policy, LTL_formula, predicates, start=start, T=T, plot=verbose>=3, animation=animation)
         if reachability:
-            rewards.append(any([i>0 for i in [csrl.reward[x] for x in episode]]))
+            trajectory = [s[-2]*csrl.shape[-2]+s[-1] for s in episode]
+            rew = check_LTL(LTL_formula, trajectory, predicates)[0]
+            # rew = any([i>0 for i in [csrl.reward[x] for x in episode]])
+            rewards.append(rew)
         else:
             rewards.append([csrl.reward[x] for x in episode])
         episodes.append(episode)
 
         if verbose>=1: print("episode",r,"rew:",rew)
-        if verbose>=2: print("states (if in acc)", [csrl.oa.acc[q][csrl.mdp.label[r,c]][0] for (i,q,r,c) in episode])
+        if verbose>=2: print("episode:",episode)
+        if verbose>=3: print("states (if in acc)", [csrl.oa.acc[q][csrl.mdp.label[r,c]][0] for (i,q,r,c) in episode])
     
     print("Test finished with:")
     print('\tsuccess rate:',np.sum(rewards),"/",runs,"=", round((np.sum(rewards)/runs),3))
