@@ -109,7 +109,7 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
         if start: state = (csrl.shape[0]-1,csrl.oa.q0) + start
         else:
             state = csrl.mdp.random_state()
-            while(csrl.mdp.structure[state]!='E' or csrl.mdp.label[state]!=() or state == (4,0)):
+            while(csrl.mdp.structure[state]!='E' or csrl.mdp.label[state]!=()):
                 state = csrl.mdp.random_state()
             state = (csrl.shape[0]-1,csrl.oa.q0) + state
 
@@ -357,12 +357,14 @@ def MCTS(csrl, model, root, LTL_formula, predicates, trajectory, episode, reward
     return Pi, acc_value/n_samples, best_val_len[root]
 
 def run_Q_test(csrl, policy, LTL_formula, predicates, start=None, T=100, runs=100, verbose=1,  animation=None, reachability=False):
-        
+    
     print(f"Running {runs} simulations with {T} time-steps...")
     rewards = []
     episodes = []
+    rew_table = (np.ones(csrl.mdp.shape), np.zeros(csrl.mdp.shape))
     for r in range(runs):
         episode, rew = csrl.simulate(policy, LTL_formula, predicates, start=start, T=T, plot=verbose>=3, animation=animation)
+        
         if reachability:
             trajectory = [s[-2]*csrl.shape[-2]+s[-1] for s in episode]
             rew = check_LTL(LTL_formula, trajectory, predicates)[0]
@@ -370,7 +372,12 @@ def run_Q_test(csrl, policy, LTL_formula, predicates, start=None, T=100, runs=10
             rewards.append(rew)
         else:
             rewards.append([csrl.reward[x] for x in episode])
+
         episodes.append(episode)
+
+        rew_table[0][episode[0][-2], episode[0][-1]] += 1
+        rew_table[1][episode[0][-2], episode[0][-1]] += rew
+        if rew_table[1][episode[0][-2], episode[0][-1]] == 1: rew_table[1][episode[0][-2], episode[0][-1]] += 1 # to correct 0.99 issue
 
         if verbose>=1: print("episode",r,"rew:",rew)
         if verbose>=2: print("episode:",episode)
@@ -379,7 +386,7 @@ def run_Q_test(csrl, policy, LTL_formula, predicates, start=None, T=100, runs=10
     print("Test finished with:")
     print('\tsuccess rate:',np.sum(rewards),"/",runs,"=", round((np.sum(rewards)/runs),3))
 
-    return episodes, rewards
+    return episodes, rewards, rew_table[1]/rew_table[0]
 
 def decayed_reward(size, init_rew, l=0.95):
   

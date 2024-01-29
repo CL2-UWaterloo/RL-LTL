@@ -5,6 +5,7 @@ from itertools import product
 from .mdp import GridMDP
 import os
 import importlib
+from dependencies.LTL import check_LTL
 
 if importlib.util.find_spec('matplotlib'):
     import matplotlib.pyplot as plt
@@ -244,12 +245,13 @@ class ControlSynthesis:
             state = states[np.random.choice(len(states),p=probs)]
             episode.append(state)
             trajectory.append(state[-2]*self.shape[-2]+state[-1])
-            
+            if check_LTL(LTL_formula, trajectory, predicates)[0]: break
+
         if plot:
-            def plot_agent(t):
+            def plot_agent(time_step):
                 self.mdp.plot(policy=policy[episode[t][:2]],agent=episode[t][2:])
-            t=IntSlider(value=0,min=0,max=T-1)
-            interact(plot_agent,t=t)
+            slider=IntSlider(value=0,min=0,max=T-1)
+            interact(plot_agent,time_step=slider)
             
         outcome = self.reward[episode[-1]]>0
 
@@ -257,8 +259,8 @@ class ControlSynthesis:
             pad=5
             if not os.path.exists(animation):
                 os.makedirs(animation)
-            for t in range(T):
-                self.mdp.plot(policy=policy[episode[t][:2]],agent=episode[t][2:],save=animation+os.sep+str(t).zfill(pad)+'.png')
+            for i in range(t+2):
+                self.mdp.plot(policy=policy[episode[i][:2]],agent=episode[i][2:],save=animation+os.sep+str(i).zfill(pad)+'.png')
                 plt.close()
             os.system('ffmpeg -r 3 -i '+animation+os.sep+'%0'+str(pad)+'d.png -vcodec libx264 -y '+animation+'.mp4')
         

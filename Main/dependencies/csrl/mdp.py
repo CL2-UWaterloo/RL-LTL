@@ -196,10 +196,12 @@ class GridMDP():
         f=FontProperties(weight='bold')
         fontname = 'Times New Roman'
         fontsize = 20
+        no_value = True
 
         if value is None:
             value = self.reward
         else:
+            no_value = False
             value = np.copy(value)
             for h in hidden:
                 value[h] = 0
@@ -290,9 +292,10 @@ class GridMDP():
             # If the background is too dark, make the text white
             color = 'white' if np.abs(value[i, j]) > threshold/2 else 'black'
             
-            if policy is None:  # Print the values       
-                v = str(int(round(100*value[i,j]))).zfill(3)
-                plt.text(j, i, '$'+v[0]+'.'+v[1:]+'$',horizontalalignment='center',color=color,fontname=fontname,fontsize=fontsize+2)  # Value
+            if policy is None:  # Print the values
+                if not no_value: 
+                    v = str(int(round(100*value[i,j]))).zfill(3)
+                    plt.text(j, i, '$'+v[0]+'.'+v[1:]+'$',horizontalalignment='center',color=color,fontname=fontname,fontsize=fontsize+2)  # Value
                 
             # Draw the arrows to visualize the policy
             elif value[i,j] > 0 or value is self.reward:  
