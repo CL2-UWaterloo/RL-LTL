@@ -10,11 +10,12 @@ class RL_LTL:
         self.model = model
         self.visited_states_train = []
         self.visited_states_test = []
-        self.LTL_coef = 10
+        self.LTL_coef = 1
         self.NN_value_active = False
+        self.start_idx = None
         self.policy_succ_rate = []
         self.N, self.W, self.Q, self.P, self.visited_test, self.visited_train = np.zeros(self.gw.csrl.shape), np.zeros(self.gw.csrl.shape), np.zeros(self.gw.csrl.shape), np.zeros(self.gw.csrl.shape), set(), set()
-        self.gw_idx = np.array([[f'{i},{j}' for i in range(10)] for j in range(10)])
+        self.gw_idx = np.array([[f'{j},{i}' for i in range(gw.mdp.shape[1])] for j in range(gw.mdp.shape[0])])
         self.empty_idx = (self.gw.structure == 'E')
         self.unlabeled_idx = np.array([[i==() for i in x] for x in self.gw.label])
 
@@ -26,7 +27,7 @@ class RL_LTL:
         self.training = kwargs['training'] if 'training' in kwargs else True
         self.epochs = kwargs['epochs'] if 'epochs' in kwargs else 10
         self.C = kwargs['C'] if 'C' in kwargs else 0.5
-        self.tow = kwargs['tow'] if 'tow' in kwargs else 0.1
+        self.tow = kwargs['tow'] if 'tow' in kwargs else 0.2
         self.K = kwargs['K'] if 'K' in kwargs else 1
         self.batch_size = kwargs['batch_size'] if 'batch_size' in kwargs else 32
         self.steps_per_epoch = kwargs['steps_per_epoch'] if 'steps_per_epoch' in kwargs else 4
@@ -37,12 +38,14 @@ class RL_LTL:
     def train(self, num_training_epochs=None, start=None, T =[50], smart_start=False):
         if num_training_epochs != None: self.num_training_epochs = num_training_epochs
         idx = 0
+        C = self.C
         self.train_history = []
+        start_idx = None
 
         for i in T:
             idx += 1
             print("##########################")
-            print("C:",self.C, "| tow:",self.tow)
+            print("C:",C, "| tow:",self.tow)
             # TRAIN ##############################
             train_wins = 0
             # num_training_epochs = int(200 - 1.9*i)
@@ -51,16 +54,17 @@ class RL_LTL:
             for epoch in range(self.num_training_epochs):
                 t1 = time.time()
                 state_history, channeled_states, trajectory, action_history, reward_history, better_policy, best_val_len = MC_learning(
-                    self.gw.csrl, self.model, self.gw.LTL_formula, self.gw.predicates, self.gw.csrl.reward, self.gw.ch_states,
-                    N = N, W = W, Q = Q, P = P, C=self.C, tow=self.tow, n_samples=self.MCTS_samples, visited=visited_train,
+                    self.gw.csrl, self.model, self.gw.LTL_formula, self.gw.predicates.copy(), self.gw.csrl.reward, self.gw.ch_states,
+                    N = N, W = W, Q = Q, P = P, C=C, tow=self.tow, n_samples=self.MCTS_samples, visited=visited_train,
                     start=start, search_depth=self.search_depth, verbose=0, T=i, K=self.K, NN_value_active=self.NN_value_active,
-                    run_num=epoch, ltl_f_rew=True, reachability=True, best_val_len = self.best_val_len)
+                    run_num=epoch, ltl_f_rew=True, reachability=True, best_val_len = self.best_val_len, danger_zone='d')
                 
                 self.visited_states_train += state_history
                 t2 = time.time()
                 # print(t2-t1, " run episode")
 
-                win = check_LTL(self.gw.LTL_formula, trajectory, self.gw.predicates)[0]
+                # win = check_LTL(self.gw.LTL_formula, trajectory, self.gw.predicates)[0]
+                win = reward_history[-1]
                 if win:
                     train_wins+=1
                     self.NN_value_active = True
@@ -86,17 +90,20 @@ class RL_LTL:
                     self.Q, self.N, self.W, self.P = Q, N, W, P
 
                 if smart_start and self.NN_value_active:
-                    self.evaluate(len=i)
-                    unsolved_idx = (self.rew_table == 0)
+                    self.evaluate(len=i, runs=500)
+                    unsolved_idx = (self.rew_table != 1)
                     start_idx = unsolved_idx * self.empty_idx * self.unlabeled_idx
                     if start_idx.sum() > 0: # at least one starting point
                         start = np.random.choice(self.gw_idx[start_idx])
                         start = int(start.split(',')[0]), int(start.split(',')[1])
-                        if len(trajectory) == 1: print(self.gw_idx[start_idx], start)
+                        C *= 1.02
+                        # print(len(self.gw_idx[start_idx]), start)
+                    else: break # training complete
+
                 # win_hist.append(win)
                 t4 = time.time()
                 # print(t4-t3, "fit", len(x_train))
-            print("Train wins:",train_wins,"/", self.num_training_epochs)
+            print("Train wins:",train_wins,"/", epoch)
 
 
     def get_policy(self, num_test_epochs=None, start=None, reset_tables=True, T =[50], smart_start=False):
@@ -113,10 +120,10 @@ class RL_LTL:
             N, W, Q, P, visited_test = self.N, self.W, self.Q, self.P, self.visited_test
             for epoch in range(self.num_test_epochs):
                 state_history, channeled_states, trajectory, action_history, reward_history, better_policy, best_val_len = MC_learning(
-                    self.gw.csrl, self.model, self.gw.LTL_formula, self.gw.predicates, self.gw.csrl.reward, self.gw.ch_states,
-                    N = N, W = W, Q = Q, P = P, C=0.2, tow=0.05, n_samples=self.MCTS_samples, visited=visited_test, start=start,
+                    self.gw.csrl, self.model, self.gw.LTL_formula, self.gw.predicates.copy(), self.gw.csrl.reward, self.gw.ch_states,
+                    N = N, W = W, Q = Q, P = P, C=0.1, tow=0.05, n_samples=self.MCTS_samples, visited=visited_test, start=start,
                     search_depth=self.search_depth, verbose=0, T=i, K=1, NN_value_active=True, run_num=epoch, ltl_f_rew=True,
-                    reachability=True, best_val_len = self.best_val_len)
+                    reachability=True, best_val_len = self.best_val_len, danger_zone='d')
 
                 # win = check_LTL(LTL_formula, trajectory, predicates)[0]
                 win = reward_history[-1]
@@ -127,7 +134,7 @@ class RL_LTL:
 
                 if smart_start:
                     self.evaluate(len=i)
-                    unsolved_idx = (self.rew_table == 0)
+                    unsolved_idx = (self.rew_table != 1)
                     start_idx = unsolved_idx * self.empty_idx * self.unlabeled_idx
                     if start_idx.sum() > 0: # at least one starting point
                         start = np.random.choice(self.gw_idx[start_idx])
@@ -155,7 +162,7 @@ class RL_LTL:
     def evaluate(self, start=None, len=50, runs=1000, verbose=0, animation=None):
         self.policy = np.argmax(self.N,axis=4)
         # self.value=np.max(self.Q,axis=4)
-        episodes, rew, rew_table = run_Q_test(self.gw.csrl, self.policy, self.gw.LTL_formula, self.gw.predicates,
+        episodes, rew, rew_table = run_Q_test(self.gw.csrl, self.policy, self.gw.LTL_formula, self.gw.predicates.copy(),
                                    start=start, T=len, runs=runs, verbose=verbose, reachability=True, animation=animation)
         self.policy_succ_rate.append(np.sum(rew)/runs)
         self.rew_table = rew_table

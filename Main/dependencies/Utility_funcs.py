@@ -73,6 +73,13 @@ def channeled(csrl, enc, agent=True):
             idx += 1
     return ch_states
 
+def update_minecraft_inventory(predicates, trajectory):
+    bridge = "<> ((tr /\ <> (ir /\ <> fa)) \/ (ir /\ <> (tr /\ <> fa))) /\ [] (~ wt \/ br)"
+    bridge = parser.parse(bridge)
+    # axe = ("F (tr & F (wb & F (ir & F ts))) & G (! wt | br)")
+    if check_LTL(bridge, trajectory, predicates)[0]:
+        predicates['br'] = predicates['wt'] # add bridge on all waters
+
 def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, tow=1, n_samples=300,
                 search_depth=None, N={}, W={}, Q={}, P={}, verbose=0.5, visited=set(),
                 start=None,T=None,K=None, run_num=None, ltl_f_rew=None, NN_value_active=False, LTL_coef=10,
@@ -102,7 +109,7 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
     success_rate = 0
     MCTS_win_rate = []
     # print('visited:', len(visited))
-    
+
     for k in range(K):
         reward = 0
         state_history, channeled_states, action_history, reward_history, better_policy, trajectory = [], [], [], [], [] ,[]
@@ -129,11 +136,12 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
             # print(MCST_depth)
             # Choose Action
             # print(t+1,")","Depth:",MCST_depth,end=" | ")
-            Pi, acc_value, best_val_len[state] = MCTS(csrl, model, state, LTL_formula, predicates, trajectory[:-1], state_history[:-1], rewards,
-                                 ch_states, N, W, Q, P, visited, n_samples=n_samples, depth=MCST_depth, tow=tow, C=C,
+            Pi, acc_value, best_val_len[state] = MCTS(csrl, model, state, LTL_formula, predicates.copy(), trajectory[:-1], state_history[:-1], rewards,
+                                 ch_states, N, W, Q, P, visited, n_samples=n_samples, depth=MCST_depth, tow=tow, C=C, danger_zone=danger_zone,
                                  ltl_f_rew=ltl_f_rew, NN_value_active=NN_value_active, LTL_coef=LTL_coef, reachability=reachability,
                                  best_val_len = best_val_len)
             if t==0: print(run_num, ") MCTS conf:", round(acc_value, 2), ", det:", round(Pi.max(), 2), end=" | ")
+            if csrl.mdp.p > 0.99 and acc_value > 0.99 and Pi.max() > 0.99: n_samples = 1 # a small hack to speedup training in deterministic case
             # NN_value_active = True if acc_value>0 else False
             # print(t2-t1, "MCTS")
             MCTS_win_rate.append(acc_value)
@@ -155,26 +163,30 @@ def MC_learning(csrl, model, LTL_formula, predicates, rewards, ch_states, C=3, t
                 #     print(i, N[i])
             
             state = next_state
-            
             trajectory.append(state[-2]*csrl.shape[-2]+state[-1])
             state_history.append(state)
             channeled_states.append(ch_states[state].copy())
-            if ltl_f_rew:
-                reward = check_LTL(LTL_formula, trajectory, predicates)[0]
-            else:
-                reward = csrl.reward[state]
-            reward_history.append(reward)
+            reward_history.append(csrl.reward[state])
+            if "wt" in predicates and len(trajectory)>2: update_minecraft_inventory(predicates, trajectory) # only for mine_craft worlds
 
-            if reachability and reward>0: break # if the problem is expepicilty a reachability problem, once we reach an acc state we are done.
+            if ltl_f_rew:
+                reward = check_LTL(LTL_formula, trajectory, predicates)
+                reward = reward[0] if len(reward)>0 else False
+                if reachability and reward>0: # if the problem is expepicilty a reachability problem, once we reach an acc state we are done.
+                    reward_history[-1] += reward # add LTL_f reward to last reward
+                    break 
         
         if ltl_f_rew:
             outcome = check_LTL(LTL_formula, trajectory, predicates)
+            observed_labels = [csrl.mdp.label[state[-2],state[-1]] for state in state_history]
             if len(outcome) > 0 and outcome[0]:
                 reward = 1
                 success_rate += 1
-                print("LTL [+++] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
+                print('s:',trajectory[0], "LTL_f [+++] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" ,
+                      "observed labels:", np.array(observed_labels, dtype=object)[[i != () for i in observed_labels]])
             else:
-                print("LTL [---] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" , "path:", trajectory)
+                print('s:',trajectory[0],"LTL_f [---] ", "LDBA [",round(np.sum([rewards[i] for i in state_history]), 2),"]" ,
+                      "observed labels:", np.array(observed_labels, dtype=object)[[i != () for i in observed_labels]] )
         elif reward_history[-1]>0:
             reward = 1
             success_rate += 1
@@ -243,7 +255,7 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
             # ldba_rew = np.sum([rewards[i] for i in episode])
             outcome = check_LTL(LTL_formula, trajectory, predicates)
             # ldba_rew = outcome[0]*(1+ldba_rew)
-            rew = outcome[0]
+            rew = outcome[0] if len(outcome)>0 else False
             # if root == (0, 1, 3, 0): print(ldba_rew)
         else:
             rew = np.sum([rewards[i] for i in episode])*(LTL_coef*rewards[root])
@@ -318,6 +330,7 @@ def MCTS_rec(csrl, model, root, LTL_formula, trajectory, episode, predicates, re
         print("csrl.transition_probs[root]", csrl.transition_probs[root])
 
     next_state = states[np.random.choice(len(states),p=probs)]
+    if "wt" in predicates and len(trajectory)>2: update_minecraft_inventory(predicates, trajectory) # only for mine_craft worlds
 
     ### expanding the next move and back tracking ###
     value, len_rollout = MCTS_rec(csrl, model, next_state, LTL_formula, trajectory, episode, predicates, rewards, ch_states, N, W, Q, P,
@@ -334,7 +347,7 @@ def MCTS(csrl, model, root, LTL_formula, predicates, trajectory, episode, reward
          best_val_len = {}, foo=1):
     acc_value = 0
     for sample in range(n_samples):
-        value, len_rollout = MCTS_rec(csrl, model, root, LTL_formula, trajectory.copy(), episode.copy(), predicates, rewards,
+        value, len_rollout = MCTS_rec(csrl, model, root, LTL_formula, trajectory.copy(), episode.copy(), predicates.copy(), rewards,
                               ch_states, N, W, Q, P, visited=visited, C=C, depth=depth, ltl_f_rew=ltl_f_rew,
                               NN_value_active=NN_value_active, LTL_coef=LTL_coef, danger_zone=danger_zone, reachability=reachability,
                               best_val_len = best_val_len[root], foo=foo)
@@ -362,12 +375,19 @@ def run_Q_test(csrl, policy, LTL_formula, predicates, start=None, T=100, runs=10
     rewards = []
     episodes = []
     rew_table = (np.ones(csrl.mdp.shape), np.zeros(csrl.mdp.shape))
+    start_idx = start if type(start) == np.ndarray else None
+
     for r in range(runs):
-        episode, rew = csrl.simulate(policy, LTL_formula, predicates, start=start, T=T, plot=verbose>=3, animation=animation)
+        if not start_idx is None:
+            start = start_idx.flatten()[r % len(start_idx)] # this is to make sure all cells are tested at least once
+            start = int(start.split(',')[0]), int(start.split(',')[1])
+            if rew_table[1][start] > 1: start = None # if already tested, no need to explicitly test again
+        
+        episode, rew = csrl.simulate(policy, LTL_formula, predicates.copy(), start=start, T=T, plot=verbose>=3, animation=animation)
         
         if reachability:
             trajectory = [s[-2]*csrl.shape[-2]+s[-1] for s in episode]
-            rew = check_LTL(LTL_formula, trajectory, predicates)[0]
+            # rew = check_LTL(LTL_formula, trajectory, predicates)[0]
             # rew = any([i>0 for i in [csrl.reward[x] for x in episode]])
             rewards.append(rew)
         else:

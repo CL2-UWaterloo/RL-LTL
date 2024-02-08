@@ -6,6 +6,7 @@ from .mdp import GridMDP
 import os
 import importlib
 from dependencies.LTL import check_LTL
+from dependencies.Utility_funcs import update_minecraft_inventory
 
 if importlib.util.find_spec('matplotlib'):
     import matplotlib.pyplot as plt
@@ -60,14 +61,16 @@ class ControlSynthesis:
         # Create the reward matrix
         self.reward = np.zeros(self.shape[:-1])
         for i,q,r,c in self.states():
-            self.reward[i,q,r,c] = 1-self.discountB if oa.acc[q][mdp.label[r,c]][i] else 0
+            l = mdp.label[r,c] if mdp.label[r,c] in oa.acc[q] else ()
+            self.reward[i,q,r,c] = 1-self.discountB if oa.acc[q][l][i] else 0
         
         # Create the transition matrix
         self.transition_probs = np.empty(self.shape,dtype=object)  # Enrich the action set with epsilon-actions
         for i,q,r,c in self.states():
             for action in self.A[i,q,r,c]:
                 if action < len(self.mdp.A): # MDP actions
-                    q_ = oa.delta[q][mdp.label[r,c]]  # OA transition
+                    l = mdp.label[r,c] if mdp.label[r,c] in oa.delta[q] else ()
+                    q_ = oa.delta[q][l]  # OA transition
                     mdp_states, probs = mdp.get_transition_prob((r,c),mdp.A[action])  # MDP transition
                     self.transition_probs[i,q,r,c][action] = [(i,q_,)+s for s in mdp_states], probs  
                 else:  # epsilon-actions
@@ -233,7 +236,7 @@ class ControlSynthesis:
         if start: state = (self.shape[0]-1,self.oa.q0) + start
         else:
             state = self.mdp.random_state()
-            while(self.mdp.structure[state]!='E' or self.mdp.label[state]!=() or state==(4,0)):
+            while(self.mdp.structure[state]!='E' or self.mdp.label[state]!=()):
                 state = self.mdp.random_state()
             state = (self.shape[0]-1,self.oa.q0) + state
 
@@ -245,7 +248,10 @@ class ControlSynthesis:
             state = states[np.random.choice(len(states),p=probs)]
             episode.append(state)
             trajectory.append(state[-2]*self.shape[-2]+state[-1])
-            if check_LTL(LTL_formula, trajectory, predicates)[0]: break
+            if "wt" in predicates and len(trajectory)>2: update_minecraft_inventory(predicates, trajectory) # only for mine_craft worlds
+            outcome = check_LTL(LTL_formula, trajectory, predicates)
+            outcome = outcome[0] if len(outcome)>0 else False
+            if outcome: break
 
         if plot:
             def plot_agent(time_step):
@@ -253,7 +259,7 @@ class ControlSynthesis:
             slider=IntSlider(value=0,min=0,max=T-1)
             interact(plot_agent,time_step=slider)
             
-        outcome = self.reward[episode[-1]]>0
+        # outcome = self.reward[episode[-1]]>0
 
         if animation:
             pad=5

@@ -14,9 +14,10 @@ class grid_world:
         self.n_danger = n_danger
         if name == 'random': self.generate_gw(shape)
         else:
-            self.ltl = self.get_ltl(self.name)
             self.mdp = self.get_mdp(self.name, self.p)
-            self.csrl = self.build(self.mdp, self.ltl, plot=plot)
+            if self.plot: self.mdp.plot()
+            self.ltl = self.get_ltl(self.name)
+            self.csrl = self.build(self.mdp, self.ltl, plot=False)
             self.set_ltl_f()
 
     def build(self, grid_mdp, ltl, plot=False):
@@ -43,7 +44,7 @@ class grid_world:
             # MDP Description
             shape = (5,5)
             # E: Empty, T: Trap, B: Obstacle
-            structure = np.array([
+            self.structure = np.array([
             ['E',  'E',  'E',  'E',  'E'],
             ['E',  'B',  'E',  'B',  'E'],
             ['E',  'E',  'E',  'E',  'E'],
@@ -52,7 +53,7 @@ class grid_world:
             ])
 
             # Labels of the states
-            label = np.array([
+            self.label = np.array([
             [(),    (),('a',),    (),    ()],
             [(),    (),    (),    (),    ()],
             [(),    (),    (),    (),    ()],
@@ -67,7 +68,7 @@ class grid_world:
             elif self.n_danger == 4: d_idx = [(4,0), (4,1), (3,1), (3,3)]
             elif self.n_danger == 5: d_idx = [(4,0), (4,1), (3,1), (3,2), (3,3)]
             elif self.n_danger == 6: d_idx = [(1,2), (4,0), (4,1), (3,1), (3,2), (3,3)]
-            for d in d_idx: label[d] = ('d',)
+            for d in d_idx: self.label[d] = ('d',)
             # Colors of the labels 
             lcmap={
                 ('a',):'yellow',
@@ -76,7 +77,7 @@ class grid_world:
                 ('d',):'pink'
             }
 
-            grid_mdp = GridMDP(shape=shape,structure=structure,label=label,lcmap=lcmap, p=p, figsize=5)  # Use figsize=4 for smaller figures
+            grid_mdp = GridMDP(shape=shape,structure=self.structure,label=self.label,lcmap=lcmap, p=p, figsize=5)  # Use figsize=4 for smaller figures
         
         elif name == "new_case":
             # MDP Description
@@ -168,6 +169,108 @@ class grid_world:
 
             grid_mdp = GridMDP(shape=shape,structure=structure,label=label,lcmap=lcmap, p=p, figsize=14)  # Use figsize=4 for smaller figures
 
+        elif "mine_craft" in name:
+            # MDP Description
+            shape = (10, 10)
+            # E: Empty, T: Trap, B: Obstacle
+            self.structure = np.array([
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E',  'E'],
+            ])
+
+            # Labels of the states
+            self.label = np.array([
+            [('fa',),     (),     (),('wb',),     (),     (),     (),     (),('wt',),('gm',)],
+            [     (),     (),     (),     (),     (),     (),     (),     (),('wt',),('wt',)],
+            [     (),     (),     (),     (),     (),     (),     (),     (),     (),     ()],
+            [('ts',),     (),     (),('gr',),     (),('gr',),     (),     (),     (),('or',)],
+            [     (),     (),     (),     (),('tr',),     (),('tr',),     (),     (),     ()],
+            [     (),     (),     (),('gr',),     (),('gr',),     (),     (),     (),     ()],
+            [('ir',),     (),     (),     (),('tr',),     (),('tr',),     (),     (),('ts',)],
+            [     (),     (),     (),     (),     (),     (),     (),     (),     (),     ()],
+            [     (),     (),     (),     (),     (),     (),     (),     (),     (),     ()],
+            [('ir',),     (),     (),('ir',),     (),     (),('wb',),     (),     (),('fa',)],
+            ],dtype=object)
+
+            # Colors of the labels 
+            lcmap={
+                ('wt',):'turquoise',
+                ('ts',): 'grey',
+                ('fa',): 'grey',
+                ('wb',): 'brown',
+                ('tr',): 'darkgreen',
+                ('gr',): 'lightgreen',
+                ('ir',): 'orange',
+                ('gm',): 'yellow',
+                ('or',): 'darkgrey'
+            }
+
+            # for i in range(self.label.shape[0]):
+            #         for j in range(self.label.shape[1]):
+            #             if name == "mine_craft_1" and self.label[i,j] not in [('tr',), ('ts',)]: self.label[i,j] = ()
+            #             if name == "mine_craft_2" and self.label[i,j] not in [('tr',), ('wb',)]: self.label[i,j] = ()
+            #             if name == "mine_craft_3" and self.label[i,j] not in [('gr',), ('fa',)]: self.label[i,j] = ()
+            #             if name == "mine_craft_4" and self.label[i,j] not in [('gr',), ('ts',)]: self.label[i,j] = ()
+
+
+            grid_mdp = GridMDP(shape=shape,structure=self.structure,label=self.label,lcmap=lcmap, p=p, figsize=8)  # Use figsize=4 for smaller figures
+        
+        elif name == "office_world":
+            # MDP Description
+            shape = (11, 15)
+            # E: Empty, T: Trap, B: Obstacle
+            self.structure = np.array([
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E', 'E',  'E',  'E',  'E',  'E',  'E',  'E', 'E'],
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E'],
+            ['B',  'E',  'B',  'B',  'B',  'E',  'B', 'B',  'B',  'E',  'B',  'B',  'B',  'E', 'B'],
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E'],
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E'],
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E'],
+            ['B',  'E',  'B',  'B',  'B',  'B',  'B', 'B',  'B',  'B',  'B',  'B',  'B',  'E', 'B'],
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E'],
+            ['E',  'E',  'E',  'E',  'E',  'E',  'E', 'E',  'E',  'E',  'E',  'E',  'E',  'E', 'E'],
+            ['E',  'E',  'E',  'B',  'E',  'E',  'E', 'B',  'E',  'E',  'E',  'B',  'E',  'E', 'E']
+            ])
+
+            # Labels of the states
+            self.label = np.array([
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),    ('d',),(),    (),    (),    ('d',),(),    (),    (),    (),    ()],
+            [(),    (),    (),    (),('c',),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()],
+            [(),('d',),    (),    (),    (),('o',),    (),    (),    (),    ('m',),(),    (),    (),('d',),    ()],
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),('c',),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),('d',),    (),    (),    (),('d',),    (),    (),    (),    (),    ()],
+            [(),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    (),    ()]
+            ],dtype=object)
+
+            # Colors of the labels 
+            lcmap={
+            # ('a',):'yellow',
+            # ('b',):'greenyellow',
+            # ('c',):'brown',
+            # ('x',):'pink',
+            # ('e',):'limegreen',
+            # ('o',):'springgreen',
+            # ('m',):'turquoise'
+        }
+
+
+            grid_mdp = GridMDP(shape=shape,structure=self.structure,label=self.label,lcmap=lcmap, p=p, figsize=11)  # Use figsize=4 for smaller figures
+        
+
         return grid_mdp
     
     def get_ltl(self, name):
@@ -179,20 +282,54 @@ class grid_world:
             ltl = ("(G !d) & ((!c) U b) & ((!b) U a) & (F G c)")
         elif name == "frozen_lake":
             ltl = ("(G !d)")
+        elif name == "office_world":
+            ltl = ('G ! d & F ((m & F (c & F o)) | (c & F (m & F o)))')
+        elif name == "mine_craft_1": # make plank
+            ltl = ("F (tr & F (ts)) & G (! wt | br)")
+        elif name == "mine_craft_2": # make stick
+            ltl = ("F (tr & F (wb)) & G (! wt | br)")
+        elif name == "mine_craft_3": # make cloth
+            ltl = ("F (gr & F (fa)) & G (! wt | br)")
+        elif name == "mine_craft_4": # make rope
+            ltl = ("F (gr & F (ts)) & G (! wt | br)")
+        elif name == "mine_craft_5": # make bridge
+            ltl = ("F ((tr & F (ir & F fa)) | (ir & F (tr & F fa))) & G (! wt | br)")
+        elif name == "mine_craft_6": # make bed ---
+            ltl = ("F (tr & F (ts & F (gr & F wb))) & G (! wt | br)")
+        elif name == "mine_craft_7": # make axe
+            ltl = ("F (tr & F (wb & F (ir & F ts))) & G (! wt | br)")
+        elif name == "mine_craft_8": # make shears
+            ltl = ("F (tr & F (wb & F (ir & F wb))) & G (! wt | br)")
+        elif name == "mine_craft_9": # get gold
+            ltl = ("F ((ir & F (tr & F (fa & F gm))) | (tr & F (ir & F (fa & F gm)))) & G (! wt | br)")
+        elif name == "mine_craft_10": # get gem
+            ltl = ("F (tr & F (wb & F (ir & F (ts & F or)))) & G (! wt | br)")
         return ltl
 
     def set_ltl_f(self):
-        if self.name == "random":
-            ltl = "[] ~d /\ (~c % b) /\ (~b % a) /\ (<> [] c)"
-        if self.name == "sequential_delivery":
-            ltl = "[] ~d /\ (~c % b) /\ (~b % a) /\ (<> [] c)"
-        elif self.name == "new_case":
-            ltl = "[] ~d /\ (~c % b) /\ (~b % a) /\ (<> [] c)"
-        elif self.name == "frozen_lake":
-            ltl = "[] ~d"
+        # if self.name == "random":
+        #     ltl = "[] ~d /\ (~c % b) /\ (~b % a) /\ (<> [] c)"
+        # if self.name == "sequential_delivery":
+        #     ltl = "[] ~d /\ (~c % b) /\ (~b % a) /\ (<> [] c)"
+        # elif self.name == "new_case":
+        #     ltl = "[] ~d /\ (~c % b) /\ (~b % a) /\ (<> [] c)"
+        # elif self.name == "frozen_lake":
+        #     ltl = "[] ~d"
+        # elif self.name == "mine_craft_1": # make plank
+        #     ltl = "<> (wd /\ > <> (ts))"
+        
+        ltl = self.ltl.replace("G", "[]")
+        ltl = ltl.replace("!", "~")
+        ltl = ltl.replace("F", "<>")
+        ltl = ltl.replace("U", "%")
+        ltl = ltl.replace("X", ">")
+        ltl = ltl.replace("&", "/\\")
+        ltl = ltl.replace("|", "\\/")
 
         self.LTL_formula = parser.parse(ltl)
         self.predicates=get_predicates(self.mdp)
+        if "mine_craft" in self.name: self.predicates['br'] = []
+        if "sequential_delivery" in self.name and 'd' not in self.predicates: self.predicates['d'] = []
 
     def generate_gw(self, shape):
         
@@ -244,4 +381,4 @@ class grid_world:
                     obstacles += 1
                     if obstacles >= max_obstacles: break
         self.obstacles = obstacles
-        
+    
