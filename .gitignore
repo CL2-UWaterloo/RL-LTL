@@ -1,5 +1,13 @@
-Main\env.pd
-Main\outputs\models
-Main\outputs\Ours\*.png
-Main\outputs\gifs
+Main/env.pd
+
+Main/outputs/models
+Main/outputs/Ours/*.png
+Main/outputs/gifs
+Main/outputs/CSRL
+Main/outputs/Log_run.txt
+
+Main/dependencies/__pycache__
+
+Main/env.pdf
+Main/checkpoint
 
