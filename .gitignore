@@ -7,6 +7,7 @@ Main/outputs/CSRL
 Main/outputs/Log_run.txt
 
 Main/dependencies/__pycache__
+Main/dependencies/csrl/__pycache__
 
 Main/env.pdf
 Main/checkpoint
