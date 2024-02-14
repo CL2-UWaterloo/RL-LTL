@@ -294,7 +294,7 @@ class grid_world:
             ltl = ("F (gr & F (ts)) & G (! wt | br)")
         elif name == "mine_craft_5": # make bridge
             ltl = ("F ((tr & F (ir & F fa)) | (ir & F (tr & F fa))) & G (! wt | br)")
-        elif name == "mine_craft_6": # make bed ---
+        elif name == "mine_craft_6": # make bed 
             ltl = ("F (tr & F (ts & F (gr & F wb))) & G (! wt | br)")
         elif name == "mine_craft_7": # make axe
             ltl = ("F (tr & F (wb & F (ir & F ts))) & G (! wt | br)")
