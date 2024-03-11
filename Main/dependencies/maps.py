@@ -7,17 +7,18 @@ from dependencies.csrl import ControlSynthesis
 import numpy as np
 
 class grid_world:
-    def __init__(self, name = 'random', p=1, plot=True, n_danger=None, shape=(5,5)):
+    def __init__(self, name = 'random', p=1, plot=True, n_danger=None, shape=(5,5), csrl= None):
         self.name = name
         self.plot = plot
         self.p = p
         self.n_danger = n_danger
+        self.csrl = csrl
         if name == 'random': self.generate_gw(shape)
         else:
             self.mdp = self.get_mdp(self.name, self.p)
             if self.plot: self.mdp.plot()
             self.ltl = self.get_ltl(self.name)
-            self.csrl = self.build(self.mdp, self.ltl, plot=False)
+            csrl = self.build(self.mdp, self.ltl, plot=False)
             self.set_ltl_f()
 
     def build(self, grid_mdp, ltl, plot=False):
@@ -28,16 +29,17 @@ class grid_world:
         if plot: grid_mdp.plot(save="env.pdf")
 
         # Construct the product MDP
-        csrl = ControlSynthesis(grid_mdp,oa)
-        self.max_rew = round(csrl.reward.max(), 3)
+        if self.csrl == None: self.csrl = ControlSynthesis(grid_mdp,oa)
 
-        self.s_vectors = state_vectors(csrl)
+        self.max_rew = round(self.csrl.reward.max(), 3)
+
+        self.s_vectors = state_vectors(self.csrl)
         enc = list(np.unique(grid_mdp.label))
         enc.pop(enc.index(()))
-        self.ch_states = channeled(csrl, enc)
-        self.total_number_of_states = csrl.mdp.shape[0]*csrl.mdp.shape[1]*csrl.oa.shape[1]
+        self.ch_states = channeled(self.csrl, enc)
+        self.total_number_of_states = self.csrl.mdp.shape[0]*self.csrl.mdp.shape[1]*self.csrl.oa.shape[1]
 
-        return csrl
+        return self.csrl
 
     def get_mdp(self, name, p):
         if name == "sequential_delivery":

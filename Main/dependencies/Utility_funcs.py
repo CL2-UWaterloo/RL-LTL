@@ -68,9 +68,10 @@ def channeled(csrl, enc, agent=True):
     for i,q,r,c in csrl.states():
             ch_s = np.zeros((csrl.shape[1], csrl.shape[2], csrl.shape[3]))
             ch_s[q] = build_grid_world(csrl.mdp, enc, r, c, agent)
-            # ch_states[(i,q,r,c)] = np.moveaxis(ch_s, [0,1,2], [2,0,1])
-            ch_states[(i,q,r,c)] = ch_s
+            ch_states[(i,q,r,c)] = np.moveaxis(ch_s, [0,1,2], [2,0,1])
+            # ch_states[(i,q,r,c)] = ch_s
             idx += 1
+    # return np.moveaxis(ch_states, [0,1,2], [2,0,1])
     return ch_states
 
 def update_minecraft_inventory(predicates, trajectory):

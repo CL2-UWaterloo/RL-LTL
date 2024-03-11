@@ -11,7 +11,7 @@ def build_model(grid_world_shape, Pi_shape=5):
   x = Dense(32, activation='relu')(x0)
   x = Dense(16, activation='relu')(x)
   move_predictions = Dense(Pi_shape, activation='softmax')(x)
-  value_predictions = Dense(1, activation='tanh')(x)
+  value_predictions = Dense(1, activation='sigmoid')(x)
 
   model = Model(inputs=inputs, outputs=(move_predictions, value_predictions))
   # model = Model(inputs=inputs, outputs=move_predictions)
