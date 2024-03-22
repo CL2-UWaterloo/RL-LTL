@@ -89,7 +89,7 @@ class RL_LTL:
                     tr_hist = self.model.fit(x_train, [y1_train, y2_train], epochs=self.epochs, batch_size=self.batch_size,
                                         steps_per_epoch=self.steps_per_epoch if len(x_train)>self.steps_per_epoch*self.epochs*self.batch_size else None, verbose=0)
                     self.train_history += tr_hist.history['loss']
-                    self.Q, self.N, self.W, self.P = Q, N, W, P
+                self.Q, self.N, self.W, self.P = Q, N, W, P
 
                 if smart_start and self.NN_value_active:
                     self.evaluate(len=i, runs=500)
