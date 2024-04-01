@@ -1,7 +1,5 @@
 import numpy as np
 from dependencies.LTL import *
-from dependencies.RL_LTL import RL_LTL
-import pickle
 
 def get_predicates(grid_mdp):
         aps = list(np.unique(grid_mdp.label))
@@ -420,36 +418,3 @@ def decayed_reward(size, init_rew, l=0.95):
     init_rew *= l
   
   return np.array(rew_seq)
-  
-def eval(model, n_gw_test=10, n_runs = 1, training_epochs = 10):
-    baseline = np.array([
-       [0.0652, 0.0656, 0.2148, 0.2816, 0.3776, 0.4112, 0.5716, 0.5844, 0.5948, 0.7012, 0.701 ],
-       [0.3184, 0.434 , 0.5752, 0.5924, 0.6708, 0.6912, 0.6836, 0.6872, 0.796 , 0.8084, 0.8046],
-       [0.1096, 0.2284, 0.244 , 0.434 , 0.4936, 0.494 , 0.5456, 0.5936, 0.6012, 0.726 , 0.7372],
-       [0.    , 0.0832, 0.2672, 0.3844, 0.454 , 0.5052, 0.5472, 0.564 , 0.588 , 0.624 , 0.6204],
-       [0.0996, 0.4336, 0.5184, 0.528 , 0.5604, 0.5952, 0.5936, 0.7132, 0.7216, 0.7436, 0.738 ],
-       [0.208 , 0.4076, 0.4384, 0.526 , 0.6128, 0.6432, 0.6588, 0.72  , 0.7296, 0.7844, 0.8122],
-       [0.    , 0.09  , 0.206 , 0.2208, 0.2424, 0.388 , 0.3992, 0.5132, 0.6416, 0.6496, 0.6506],
-       [0.0348, 0.0608, 0.1748, 0.3244, 0.3292, 0.45  , 0.4996, 0.5276, 0.5596, 0.6232, 0.6472],
-       [0.0168, 0.0572, 0.0656, 0.1316, 0.2108, 0.228 , 0.2796, 0.3528, 0.3712, 0.5004, 0.5464],
-       [0.1096, 0.3336, 0.4776, 0.6212, 0.7104, 0.7704, 0.8092, 0.8176, 0.816 , 0.8392, 0.8366]])
-    
-    accuracies = []
-    for i in range(n_gw_test):
-        temp = []
-        with open(f'outputs/gws/test/gw{i+1}.dat', 'rb') as f:
-            gw = pickle.load(f)
-        for j in range(n_runs):
-            env = RL_LTL(gw, model, kwargs={'training': False})
-            env.train(training_epochs, smart_start=True)
-            env.get_policy(1, reset_tables=False)
-            temp.append([0] * (training_epochs - len(env.policy_succ_rate) + 1) + env.policy_succ_rate)
-
-        accuracies.append(np.mean(temp, 0))
-
-    accuracies = np.array(accuracies)
-    
-    speedup = (accuracies - baseline[:n_gw_test]).mean()
-    perf = (accuracies[:, -1] - baseline[:n_gw_test, -1]).mean()
-
-    return speedup, perf
