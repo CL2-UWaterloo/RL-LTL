@@ -109,6 +109,7 @@ class RL_LTL:
 
 
     def get_policy(self, num_test_epochs=None, start=None, reset_tables=True, T =[50], smart_start=False):
+        saved_records = [[], [], []]
         if num_test_epochs != None: self.num_test_epochs = num_test_epochs
         for i in T:
             self.success_rates = []
@@ -133,6 +134,10 @@ class RL_LTL:
                 self.win_hist.append(win)
                 self.visited_states_test += state_history
                 self.Q, self.N, self.W, self.P, self.visited_test = Q, N, W, P, visited_test
+
+                saved_records[0].append(state_history)
+                saved_records[1].append(action_history)
+                saved_records[2].append(reward_history)
 
                 if smart_start:
                     self.evaluate(len=i)
@@ -159,6 +164,7 @@ class RL_LTL:
         self.policy = np.argmax(self.N,axis=4)
         self.value=np.max(self.Q,axis=4)
         self.evaluate(len=i)
+        return saved_records
         # u, d, r, l
 
     def evaluate(self, start=None, len=50, runs=1000, verbose=0, animation=None):
@@ -169,7 +175,6 @@ class RL_LTL:
         self.policy_succ_rate.append(np.sum(rew)/runs)
         self.rew_table = rew_table
     
-      
 def eval(model, n_gw_test=10, n_runs = 1, training_epochs = 10):
     """
     inp

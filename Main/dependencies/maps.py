@@ -297,6 +297,33 @@ class grid_world:
 
             grid_mdp = GridMDP(shape=shape,structure=self.structure,label=self.label,lcmap=lcmap, p=p, figsize=3)  # Use figsize=4 for smaller figures
             
+        elif name == "custom1":
+            shape = (10, 10)
+
+            self.structure = np.array([['E' for _ in range(10)] for _ in range(10)])
+
+            self.label = np.array([
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), ('a',), (), (), (), (), (), (), (), ()],
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), (), (), (), (), (), (), (), ('b',), ()],
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), (), (), (), (), (), (), (), (), ()],
+                [(), ('c',), (), (), (), (), (), (), (), ()]
+                                   ],dtype=object)
+
+            # Colors of the labels
+            lcmap={
+                ('a',):'lightgreen',
+                ('b',):'pink',
+                ('c',):'yellow'
+            }
+
+            grid_mdp = GridMDP(shape=shape,structure=self.structure,label=self.label,lcmap=lcmap, p=p, figsize=3)  # Use figsize=4 for smaller figures
+            
         
 
         return grid_mdp
@@ -308,6 +335,8 @@ class grid_world:
             ltl = ('(F G a | F G b) & G !d')
         elif name == "sequential_delivery":
             ltl = ("(G !d) & ((!c) U b) & ((!b) U a) & (F G c)")
+        elif name == "custom1":
+            ltl = ("((!c) U b) & ((!b) U a) & (F G c)")
         elif name == "new_case":
             ltl = ("(G !d) & ((!c) U b) & ((!b) U a) & (F G c)")
         elif name == "frozen_lake":
